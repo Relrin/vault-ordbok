@@ -1,5 +1,6 @@
 mod cli;
 mod vault;
+mod parser;
 
 use structopt::StructOpt;
 

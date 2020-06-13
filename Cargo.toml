@@ -11,6 +11,8 @@ keywords = ["vault", "secrets", "k8s", "helm", "devops", "infrastructure"]
 
 [dependencies]
 clap = "2.33"
+regex = "1.3.9"
+lazy_static = "1.4.0"
 structopt = "0.3.14"
 structopt-derive = "0.4.7"
 quick-error = "1.2.3"
