@@ -1,0 +1,16 @@
+[package]
+name = "vault-ordbok"
+version = "0.1.0"
+authors = ["Valeryi Savich <relrin78@gmail.com>"]
+edition = "2018"
+license = "BSD-3-Clause"
+description = "Utility for injecting Vault values in k8s manifests and helm charts "
+homepage = "https://github.com/Relrin/vault-ordbok"
+repository = "https://github.com/Relrin/vault-ordbok"
+keywords = ["vault", "secrets", "k8s", "helm", "devops", "infrastructure"]
+
+[dependencies]
+clap = "2.33"
+structopt = "0.3.14"
+structopt-derive = "0.4.7"
+quick-error = "1.2.3"
