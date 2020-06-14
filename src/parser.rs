@@ -4,12 +4,12 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 
 use crate::error::{Error, Result};
-use std::process::exit;
 
 lazy_static! {
     static ref COMMAND_REGEX: Regex =
         Regex::new(r"\{\{\s*(?P<command>[^\s\(\)]+)\s*\((?P<args>.+)\)\s*\}\}").unwrap();
-    static ref ARG_REGEX: Regex = Regex::new(r"\u0027(.*?)\u0027|\u0022(.*?)\u0022").unwrap();
+    static ref ARG_REGEX: Regex =
+        Regex::new(r"\u0027(.*?[^\\])\u0027|\u0022(.*?[^\\])\u0022").unwrap();
 }
 
 #[derive(Debug)]
@@ -82,16 +82,21 @@ impl VaultCommand {
     pub(crate) fn parse(command_name: &str, args: &str) -> Result<Self> {
         let mut extracted_args: Vec<String> = Vec::new();
         for capture in ARG_REGEX.captures_iter(args) {
-            let value = capture.get(0).map_or("", |v| v.as_str()).to_string();
-            extracted_args.push(value)
+            let mut data = capture.get(1);
+            if data.is_none() {
+                data = capture.get(2)
+            }
+
+            let value = data
+                .map_or("", |v| v.as_str())
+                .to_string()
+                .replace("\\", "");
+            extracted_args.push(value);
         }
 
         match command_name {
             "lookup" => {
-                if extracted_args.is_empty()
-                    || extracted_args.len() == 1
-                    || extracted_args.len() > 2
-                {
+                if extracted_args.len() <= 1 || extracted_args.len() > 2 {
                     let message = format!(
                         "The `{}` command requires two arguments for an execution.",
                         command_name
@@ -110,6 +115,8 @@ impl VaultCommand {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::read_to_string;
+
     use crate::parser::{ParsedCommand, VaultCommandParser};
 
     #[test]
@@ -124,21 +131,11 @@ mod tests {
 
     #[test]
     fn test_parser_returns_multiple_lookup_commands() {
-        let data = "KEY_1: {{ lookup ('/data/storage/dev/', 'key') }}
-        KEY_2: {{ lookup ('/data/storage/dev/', 'pass') }}
-        KEY_3: {{ lookup (NOT A KEY) }}
-        KEY_4: {{ definitely not a command }}
-        KEY_5: {{lookup(\"/data/storage/dev/\",'random_stuff')}}
-        KEY_6: {{lookup('/data/storage/dev/',\"random_stuff2\")}}
-        KEY_7: {{lookup(\"/data/storage/dev/\",'try parse\' this')}}
-        KEY_8: {{ lookup (\"SOME_KEY\") }}
-        KEY_9: {{ lookup (\"first\", \"second\", \"third\") }} 
-        KEY_10: {{ lookup (\"escape\" this\", \"asd\") }}";
+        let path = "./tests/manifests/k8s_multiple_keys.yaml".to_string();
+        let data = read_to_string(path).expect("Can't read the file.");
 
         let instance = VaultCommandParser::new();
-        let commands = instance.parse(data);
-
-        // dbg!("{:?}", commands);
+        let commands = instance.parse(&data);
 
         assert_eq!(commands.len(), 6);
     }

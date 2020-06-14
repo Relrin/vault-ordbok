@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-example
+  labels:
+    role: test-role
+spec:
+  containers:
+    - name: web
+      image: nginx
+      ports:
+        - name: web
+          containerPort: 80
+          protocol: TCP
+      env:
+        - name: KEY_1
+          value: {{ lookup ('/data/storage/dev/', 'key') }}
+        - name: KEY_2
+            value: {{ lookup ('/data/storage/dev/', 'pass') }}
+        - name: KEY_3
+            value: {{ lookup (NOT A KEY) }}
+        - name: KEY_4
+            value: {{ definitely not a command }}
+        - name: KEY_5
+            value: {{lookup("/data/storage/dev/",'random_stuff')}}
+        - name: KEY_6
+            value: {{lookup('/data/storage/dev/',"random_stuff2")}}
+        - name: KEY_7
+            value: {{lookup("/data/storage/dev/",'try parse\' this')}}
+        - name: KEY_8
+            value: {{ lookup ("SOME_KEY") }}
+        - name: KEY_9
+            value: {{ lookup ("first", "second", "third") }}
+        - name: KEY_10
+            value: {{ lookup ("escape\" this", "asd") }}
