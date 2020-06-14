@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use lazy_static::lazy_static;
-use regex::{Match, Regex};
+use regex::{Captures, Regex};
 
 use crate::error::{Error, Result};
+use std::process::exit;
 
 lazy_static! {
     static ref COMMAND_REGEX: Regex =
@@ -12,13 +15,13 @@ lazy_static! {
 #[derive(Debug)]
 pub struct VaultCommandParser;
 
-#[derive(Debug)]
+#[derive(Hash, Eq, PartialEq, Debug)]
 pub struct ParsedCommand {
     regex_match: String,
     command: VaultCommand,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Eq, PartialEq, Debug)]
 pub enum VaultCommand {
     Lookup { path: String, key: String },
 }
@@ -28,18 +31,13 @@ impl VaultCommandParser {
         VaultCommandParser {}
     }
 
-    pub(crate) fn parse(&self, data: &str) -> Vec<ParsedCommand> {
-        let mut parsed_commands = Vec::new();
+    pub(crate) fn parse(&self, data: &str) -> HashSet<ParsedCommand> {
+        let mut parsed_commands = HashSet::new();
 
         for group in COMMAND_REGEX.captures_iter(data) {
-            let raw_match = group.get(0).map_or("", |v| v.as_str()).to_string();
-            let command_name = group.name("command").map_or("", |v| v.as_str());
-            let args = group.name("args").map_or("", |v| v.as_str());
-
-            match VaultCommand::parse(command_name, args) {
-                Ok(vault_command) => {
-                    let command = ParsedCommand::new(raw_match, vault_command);
-                    parsed_commands.push(command);
+            match ParsedCommand::from(&group) {
+                Ok(command) => {
+                    parsed_commands.insert(command);
                 }
                 Err(err) => println!("{}", err),
             }
@@ -50,10 +48,23 @@ impl VaultCommandParser {
 }
 
 impl ParsedCommand {
-    pub(crate) fn new(regex_match: String, command: VaultCommand) -> Self {
-        ParsedCommand {
-            regex_match,
-            command,
+    pub(crate) fn from(group_match: &Captures) -> Result<Self> {
+        let raw_match = group_match.get(0).map_or("", |v| v.as_str()).to_string();
+        let command_name = group_match.name("command").map_or("", |v| v.as_str());
+        let args = group_match.name("args").map_or("", |v| v.as_str());
+
+        match VaultCommand::parse(command_name, args) {
+            Ok(vault_command) => Ok(ParsedCommand {
+                regex_match: raw_match,
+                command: vault_command,
+            }),
+            Err(err) => {
+                let message = format!(
+                    "The `{}` part can't be parsed properly. Reason: {}",
+                    raw_match, err
+                );
+                Err(Error::Parse(message))
+            }
         }
     }
 
@@ -76,17 +87,23 @@ impl VaultCommand {
         }
 
         match command_name {
-            "lookup" => match (extracted_args.get(0), extracted_args.get(1)) {
-                (Some(path), Some(key)) => Ok(VaultCommand::Lookup { path, key }),
-                _ => {
+            "lookup" => {
+                if extracted_args.is_empty()
+                    || extracted_args.len() == 1
+                    || extracted_args.len() > 2
+                {
                     let message = format!(
-                        "The `{}` command requires two arguments for execution",
+                        "The `{}` command requires two arguments for an execution.",
                         command_name
                     );
-                    Err(Error::Parse(message))
+                    return Err(Error::Arguments(message));
                 }
-            },
-            unknown_command => {}
+
+                let path = extracted_args.get(0).unwrap().to_string();
+                let key = extracted_args.get(1).unwrap().to_string();
+                Ok(VaultCommand::Lookup { path, key })
+            }
+            unknown_command => Err(Error::UnknownCommand(unknown_command.to_string())),
         }
     }
 }
@@ -107,22 +124,42 @@ mod tests {
 
     #[test]
     fn test_parser_returns_multiple_lookup_commands() {
-        // Use these examples
-        // KEY_1: {{ lookup ('/data/storage/dev/', 'key') }}
-        // KEY_2: {{ lookup ('/data/storage/dev/', 'pass') }}
-        // KEY_3: {{ lookup (NOT A KEY) }}
-        // KEY_4: {{ test a commnad }}
-        // KEY_5: {{lookup("/data/storage/dev/",'random_stuff')}}
-        // KEY_6: {{lookup('/data/storage/dev/',"random_stuff2")}}
-        // KEY_7: {{lookup("/data/storage/dev/",'try parse\' this')}}
-        // KEY_8: {{ lookup ("SOME_KEY") }}
-        // KEY_9: {{ lookup ("first", "second", "third") }}
-        // KEY_10: {{ lookup ("escape\" this",) }}
+        let data = "KEY_1: {{ lookup ('/data/storage/dev/', 'key') }}
+        KEY_2: {{ lookup ('/data/storage/dev/', 'pass') }}
+        KEY_3: {{ lookup (NOT A KEY) }}
+        KEY_4: {{ definitely not a command }}
+        KEY_5: {{lookup(\"/data/storage/dev/\",'random_stuff')}}
+        KEY_6: {{lookup('/data/storage/dev/',\"random_stuff2\")}}
+        KEY_7: {{lookup(\"/data/storage/dev/\",'try parse\' this')}}
+        KEY_8: {{ lookup (\"SOME_KEY\") }}
+        KEY_9: {{ lookup (\"first\", \"second\", \"third\") }} 
+        KEY_10: {{ lookup (\"escape\" this\", \"asd\") }}";
+
+        let instance = VaultCommandParser::new();
+        let commands = instance.parse(data);
+
+        // dbg!("{:?}", commands);
+
+        assert_eq!(commands.len(), 6);
     }
 
     #[test]
-    fn test_parser_returns_no_commands_for_empty_input() {}
+    fn test_parser_returns_no_commands_for_empty_input() {
+        let data = "";
+
+        let instance = VaultCommandParser::new();
+        let commands = instance.parse(data);
+
+        assert_eq!(commands.len(), 0);
+    }
 
     #[test]
-    fn test_parser_returns_no_commands_for_input_without_defined_commands() {}
+    fn test_parser_returns_no_commands_for_input_without_defined_commands() {
+        let data = "KEY: VALUE";
+
+        let instance = VaultCommandParser::new();
+        let commands = instance.parse(data);
+
+        assert_eq!(commands.len(), 0);
+    }
 }

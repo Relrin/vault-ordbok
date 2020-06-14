@@ -16,5 +16,11 @@ quick_error! {
         Parse(message: String) {
             display("Parse error: {}", message)
         }
+        Arguments(message: String) {
+            display("{}", message)
+        }
+        UnknownCommand(message: String) {
+            display("The `{}` command is not supported.", message)
+        }
     }
 }
