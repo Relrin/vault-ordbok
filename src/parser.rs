@@ -1,6 +1,8 @@
 use lazy_static::lazy_static;
 use regex::{Match, Regex};
 
+use crate::error::{Error, Result};
+
 lazy_static! {
     static ref COMMAND_REGEX: Regex =
         Regex::new(r"\{\{\s*(?P<command>[^\s\(\)]+)\s*\((?P<args>.+)\)\s*\}\}").unwrap();
@@ -34,10 +36,13 @@ impl VaultCommandParser {
             let command_name = group.name("command").map_or("", |v| v.as_str());
             let args = group.name("args").map_or("", |v| v.as_str());
 
-            // TODO: Add error handling
-            let vault_command = VaultCommand::parse(command_name, args);
-            let command = ParsedCommand::new(raw_match, vault_command);
-            parsed_commands.push(command);
+            match VaultCommand::parse(command_name, args) {
+                Ok(vault_command) => {
+                    let command = ParsedCommand::new(raw_match, vault_command);
+                    parsed_commands.push(command);
+                }
+                Err(err) => println!("{}", err),
+            }
         }
 
         parsed_commands
@@ -62,9 +67,8 @@ impl ParsedCommand {
 }
 
 impl VaultCommand {
-    // TODO: Add error handling
     // TODO: Add tests for this method
-    pub(crate) fn parse(command_name: &str, args: &str) -> Self {
+    pub(crate) fn parse(command_name: &str, args: &str) -> Result<Self> {
         let mut extracted_args: Vec<String> = Vec::new();
         for capture in ARG_REGEX.captures_iter(args) {
             let value = capture.get(0).map_or("", |v| v.as_str()).to_string();
@@ -72,11 +76,17 @@ impl VaultCommand {
         }
 
         match command_name {
-            _ => {
-                let path = extracted_args.get(0).unwrap().clone();
-                let key = extracted_args.get(1).unwrap().clone();
-                VaultCommand::Lookup { path, key }
-            }
+            "lookup" => match (extracted_args.get(0), extracted_args.get(1)) {
+                (Some(path), Some(key)) => Ok(VaultCommand::Lookup { path, key }),
+                _ => {
+                    let message = format!(
+                        "The `{}` command requires two arguments for execution",
+                        command_name
+                    );
+                    Err(Error::Parse(message))
+                }
+            },
+            unknown_command => {}
         }
     }
 }
