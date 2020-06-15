@@ -78,7 +78,6 @@ impl ParsedCommand {
 }
 
 impl VaultCommand {
-    // TODO: Add tests for this method
     pub(crate) fn parse(command_name: &str, args: &str) -> Result<Self> {
         let mut extracted_args: Vec<String> = Vec::new();
         for capture in ARG_REGEX.captures_iter(args) {
@@ -117,7 +116,7 @@ impl VaultCommand {
 mod tests {
     use std::fs::read_to_string;
 
-    use crate::parser::{ParsedCommand, VaultCommandParser};
+    use crate::parser::{ParsedCommand, VaultCommand, VaultCommandParser, COMMAND_REGEX};
 
     #[test]
     fn test_parser_returns_lookup_command() {
@@ -141,6 +140,17 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_returns_single_lookup_command_when_found_duplicates() {
+        let path = "./tests/manifests/k8s_duplicated_keys.yaml".to_string();
+        let data = read_to_string(path).expect("Can't read the file.");
+
+        let instance = VaultCommandParser::new();
+        let commands = instance.parse(&data);
+
+        assert_eq!(commands.len(), 1);
+    }
+
+    #[test]
     fn test_parser_returns_no_commands_for_empty_input() {
         let data = "";
 
@@ -158,5 +168,102 @@ mod tests {
         let commands = instance.parse(data);
 
         assert_eq!(commands.len(), 0);
+    }
+
+    #[test]
+    fn test_parsed_command_returns_error_for_invalid_input() {
+        let data = "KEY: {{ lookup ('1', '2', '3') }}";
+
+        let mut regex_results = COMMAND_REGEX.captures_iter(data);
+        let capture = regex_results.next().unwrap();
+        let result = ParsedCommand::from(&capture);
+
+        assert_eq!(result.is_err(), true);
+        let error = result.unwrap_err();
+        assert_eq!(
+            format!("{}", error),
+            "Parse error: The `{{ lookup (\'1\', \'2\', \'3\') }}` part \
+            can\'t be parsed properly. Reason: The `lookup` command requires \
+            two arguments for an execution."
+        )
+    }
+
+    #[test]
+    fn test_parsed_command_returns_error_for_invalid_command_name() {
+        let data = "KEY: {{ not_a_command ('1', '2', '3') }}";
+
+        let mut regex_results = COMMAND_REGEX.captures_iter(data);
+        let capture = regex_results.next().unwrap();
+        let result = ParsedCommand::from(&capture);
+
+        assert_eq!(result.is_err(), true);
+        let error = result.unwrap_err();
+        assert_eq!(
+            format!("{}", error),
+            "Parse error: The `{{ not_a_command (\'1\', \'2\', \'3\') }}` \
+            part can\'t be parsed properly. Reason: The `not_a_command` \
+            command is not supported."
+        )
+    }
+
+    #[test]
+    fn test_vault_command_parser_returns_lookup_command() {
+        let command_name = format!("lookup");
+        let args = format!("'/data/key', 'test'");
+
+        let result = VaultCommand::parse(&command_name, &args);
+
+        assert_eq!(result.is_ok(), true);
+        println!("{:?}", result);
+        let (parsed_path, parsed_args) = match result.unwrap() {
+            VaultCommand::Lookup { path, key } => (path, key),
+        };
+        assert_eq!(parsed_path, "/data/key");
+        assert_eq!(parsed_args, "test");
+    }
+
+    #[test]
+    fn test_vault_command_parser_returns_error_for_too_much_arguments() {
+        let command_name = format!("lookup");
+        let args = format!("'/data/key', 'test', 'value'");
+
+        let result = VaultCommand::parse(&command_name, &args);
+
+        assert_eq!(result.is_err(), true);
+        let error = result.unwrap_err();
+        assert_eq!(
+            format!("{}", error),
+            "The `lookup` command requires two arguments for an execution."
+        );
+    }
+
+    #[test]
+    fn test_vault_command_parser_returns_error_for_no_command_arguments() {
+        let command_name = format!("lookup");
+        let args = format!("");
+
+        let result = VaultCommand::parse(&command_name, &args);
+
+        assert_eq!(result.is_err(), true);
+        let error = result.unwrap_err();
+        assert_eq!(
+            format!("{}", error),
+            "The `lookup` command requires two arguments for an execution."
+        );
+    }
+
+    #[test]
+    fn test_vault_command_parser_returns_error_for_unsupported_command() {
+        let command_name = format!("not_a_command");
+        let args = format!("'/data/key', 'test'");
+
+        let result = VaultCommand::parse(&command_name, &args);
+
+        assert_eq!(result.is_err(), true);
+        let error = result.unwrap_err();
+        assert_eq!(
+            format!("{}", error),
+            "The `not_a_command` command is not supported."
+        );
     }
 }

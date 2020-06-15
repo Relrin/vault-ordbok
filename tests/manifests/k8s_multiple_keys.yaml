@@ -16,20 +16,20 @@ spec:
         - name: KEY_1
           value: {{ lookup ('/data/storage/dev/', 'key') }}
         - name: KEY_2
-            value: {{ lookup ('/data/storage/dev/', 'pass') }}
+          value: {{ lookup ('/data/storage/dev/', 'pass') }}
         - name: KEY_3
-            value: {{ lookup (NOT A KEY) }}
+          value: {{ lookup (NOT A KEY) }}
         - name: KEY_4
-            value: {{ definitely not a command }}
+          value: {{ definitely not a command }}
         - name: KEY_5
-            value: {{lookup("/data/storage/dev/",'random_stuff')}}
+          value: {{lookup("/data/storage/dev/",'random_stuff')}}
         - name: KEY_6
-            value: {{lookup('/data/storage/dev/',"random_stuff2")}}
+          value: {{lookup('/data/storage/dev/',"random_stuff2")}}
         - name: KEY_7
-            value: {{lookup("/data/storage/dev/",'try parse\' this')}}
+          value: {{lookup("/data/storage/dev/",'try parse\' this')}}
         - name: KEY_8
-            value: {{ lookup ("SOME_KEY") }}
+          value: {{ lookup ("SOME_KEY") }}
         - name: KEY_9
-            value: {{ lookup ("first", "second", "third") }}
+          value: {{ lookup ("first", "second", "third") }}
         - name: KEY_10
-            value: {{ lookup ("escape\" this", "asd") }}
+          value: {{ lookup ("escape\" this", "asd") }}
