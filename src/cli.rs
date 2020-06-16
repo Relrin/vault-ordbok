@@ -4,10 +4,12 @@ use structopt::StructOpt;
 #[structopt(name = "vault-ordbok")]
 pub struct Command {
     #[structopt(
-        short = "h",
-        long = "host",
-        help = "URL to the remote Vault node"
+        short = "f",
+        long = "file",
+        help = "Path to file which requires injecting Vault values"
     )]
+    pub file: String,
+    #[structopt(short = "h", long = "host", help = "URL to the remote Vault node")]
     pub host: String,
     #[structopt(
         short = "t",

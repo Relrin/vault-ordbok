@@ -11,5 +11,8 @@ use crate::vault::VaultClient;
 fn main() {
     let command = Command::from_args();
     let client = VaultClient::new();
-    client.run(&command);
+    match client.run(&command) {
+        Ok(client) => (),
+        Err(err) => println!("{}", err),
+    }
 }
