@@ -10,9 +10,9 @@ use crate::vault::VaultClient;
 
 fn main() {
     let command = Command::from_args();
-    let client = VaultClient::new();
+    let mut client = VaultClient::new();
     match client.run(&command) {
-        Ok(client) => (),
+        Ok(_) => (),
         Err(err) => println!("{}", err),
     }
 }

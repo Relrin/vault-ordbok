@@ -6,9 +6,15 @@ pub struct Command {
     #[structopt(
         short = "f",
         long = "file",
-        help = "Path to file which requires injecting Vault values"
+        help = "Path to source file with placeholders"
     )]
     pub file: String,
+    #[structopt(
+        short = "d",
+        long = "dest",
+        help = "Result file path with injected Vault values"
+    )]
+    pub destination: Option<String>,
     #[structopt(short = "h", long = "host", help = "URL to the remote Vault node")]
     pub host: String,
     #[structopt(
