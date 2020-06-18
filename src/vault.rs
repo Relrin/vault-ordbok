@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::fs::{File, read_to_string};
+use std::fs::{read_to_string, File};
 use std::io::Write;
 
-use serde_json::Value;
 use quick_error::ResultExt;
+use serde_json::Value;
 use ureq::{get as http_get, Request};
 
 use crate::cli::Command;
@@ -45,22 +45,39 @@ impl VaultClient {
                         let mut request = self.build_request(http_method, &url, &token);
                         let response = request.call();
 
+                        let empty_value = Value::String(String::new());
                         let value = match response.into_json() {
                             Ok(parsed_json) => {
-                                let namespace_values = &parsed_json.as_object().unwrap()["data"]["data"];
-                                let value = &namespace_values[&key];
-                                self.cache.insert(url.clone(), namespace_values.to_owned());
+                                let json_value = &parsed_json.as_object().unwrap()["data"]["data"];
+                                let value = json_value
+                                    .get(&key)
+                                    .unwrap_or(&empty_value)
+                                    .as_str()
+                                    .unwrap();
+                                self.cache.insert(url.clone(), json_value.to_owned());
                                 format!("{}", value)
                             }
                             Err(_) => {
-                                println!("Cant parse response body into JSON for the `{}` key", raw_match.clone());
+                                println!(
+                                    "Cant parse response body into JSON for the `{}` key",
+                                    raw_match.clone()
+                                );
                                 String::new()
                             }
                         };
 
                         value
-                    },
-                    true => String::new()
+                    }
+                    true => {
+                        let empty_value = Value::String(String::new());
+                        let json_value = self.cache.get(&url.clone()).unwrap();
+                        let value = json_value
+                            .get(&key)
+                            .unwrap_or(&empty_value)
+                            .as_str()
+                            .unwrap();
+                        format!("{}", value)
+                    }
                 };
 
                 (raw_match, data)
@@ -85,7 +102,11 @@ impl VaultClient {
     ) -> (HttpMethod, String, String) {
         match parsed_command.command() {
             VaultCommand::Lookup { path, key } => {
-                let url = format!("{}/{}", host, path.trim_start_matches("/").trim_end_matches("/"));
+                let url = format!(
+                    "{}/{}",
+                    host,
+                    path.trim_start_matches("/").trim_end_matches("/")
+                );
                 (HttpMethod::Get, url, key.clone())
             }
         }
@@ -95,7 +116,7 @@ impl VaultClient {
         match http_method {
             HttpMethod::Get => http_get(&url.clone())
                 .set("X-Vault-Token", &token.clone())
-                .build()
+                .build(),
         }
     }
 }
