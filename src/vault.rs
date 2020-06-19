@@ -95,6 +95,7 @@ impl VaultClient {
         Ok(())
     }
 
+    /// Returns API URL which can be used for accessing data in Vault.
     fn get_url_by_command(
         &self,
         parsed_command: &ParsedCommand,
@@ -112,6 +113,7 @@ impl VaultClient {
         }
     }
 
+    /// Returns an API request to the Vault withouth actual execution.
     fn build_request(&self, http_method: HttpMethod, url: &String, token: &String) -> Request {
         match http_method {
             HttpMethod::Get => http_get(&url.clone())

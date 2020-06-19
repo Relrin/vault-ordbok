@@ -31,6 +31,7 @@ impl VaultCommandParser {
         VaultCommandParser {}
     }
 
+    // Returns a set of commands that needs to be executed and replaced
     pub(crate) fn parse(&self, data: &str) -> HashSet<ParsedCommand> {
         let mut parsed_commands = HashSet::new();
 
@@ -48,6 +49,7 @@ impl VaultCommandParser {
 }
 
 impl ParsedCommand {
+    // Converts the regex capture into the Vault command
     pub(crate) fn from(group_match: &Captures) -> Result<Self> {
         let raw_match = group_match.get(0).map_or("", |v| v.as_str()).to_string();
         let command_name = group_match.name("command").map_or("", |v| v.as_str());
@@ -68,16 +70,19 @@ impl ParsedCommand {
         }
     }
 
+    // Returns a full match by regex
     pub(crate) fn regex_match(&self) -> &String {
         &self.regex_match
     }
 
+    // Returns a VaultCommand instance
     pub(crate) fn command(&self) -> &VaultCommand {
         &self.command
     }
 }
 
 impl VaultCommand {
+    /// Parses the input and tries to convert it into the appropriate Vault command
     pub(crate) fn parse(command_name: &str, args: &str) -> Result<Self> {
         let mut extracted_args: Vec<String> = Vec::new();
         for capture in ARG_REGEX.captures_iter(args) {
