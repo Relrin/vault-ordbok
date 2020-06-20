@@ -1,0 +1,62 @@
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+env:
+  global:
+    - CRATE_NAME=vault-ordbok
+
+matrix:
+  include:
+    # Linux
+    - env: TARGET=x86_64-unknown-linux-gnu
+
+    # OSX
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # Windows
+    - env: TARGET=x86_64-pc-windows-gnu
+
+before_install:
+  - set -e
+  - rustup self update
+
+install:
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
+
+script:
+  - bash ci/script.sh
+
+after_script: set +e
+
+before_deploy:
+  - sh ci/before_deploy.sh
+
+deploy:
+
+  api_key:
+    secure: oqlIJ75MoWf1xvoxOGXVS3o+d0F2TKbZ48IGjWM0bm4yy200PL1AEzu02yUOJY43j3xepcL38+LjpcIs1xRH0o73xNEuv6plz4nA3b6asViQK/uhZj9o9ikSaKYT1oIQRpkSUjrTM9lDE6pNX3U0I5RUyPZukiG0sZydNuFfD2cpzGsSAvT868ASdEHgVeIM2QuDjI2FLZ7WFSts2lPbdIf89Z+KQfutRujAO7aQrqRtLsxvJ88cqOPoof3u9nkAuhKRBci/bTfhfRXc6CttqGqhK2FwnyccmFN6dUzNRHCzAZTKze62l4QiIaxAXKd3B6s7JFCNQyB43/RnhOWzk9Xb6+d2bu9FpHG93bviNEHM7cWW+gsDuBC0enU+c79/+hn/6OUMv4v82D/3/TcVMWpH0avnJkbdyKK9mO8VR7c7NTLzRnEsF+Ga5xQ45xQSCogUQeBxTb825BZhT1EyLtKkjcjLav5nVAsSBtLhQqPmnjAFGOhDvEuaTA+nrUL3mGrefcarlJPaQdGWNcfHro8/7q/K+Nn0UC5aRamFcP+SvT0wjxIe2w7stOVbGyOnoaoBqqZJZ9WosrFAYoZgoMf4VX9ldFmvFrM1uWqRij3tC2dARp5SRl8yS8EF67AdzZtEd3+WVhlhZKe5TZFxpigd/lrDnyeiuVMJPw7fB+s=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  email:
+    on_success: never

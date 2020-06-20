@@ -7,7 +7,7 @@ license = "BSD-3-Clause"
 description = "Utility for injecting Vault values in k8s manifests and helm charts "
 homepage = "https://github.com/Relrin/vault-ordbok"
 repository = "https://github.com/Relrin/vault-ordbok"
-keywords = ["vault", "secrets", "k8s", "helm", "devops", "infrastructure"]
+keywords = ["vault", "k8s", "helm", "devops", "infrastructure"]
 
 [dependencies]
 clap = "2.33"
